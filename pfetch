@@ -688,6 +688,27 @@ get_pkgs() {
     esac
 }
 
+get_yadm() {
+    if has yadm; then
+		behind_count=$(yadm rev-list --count 'HEAD..@{u}')
+		ahead_count=$(yadm rev-list --count '@{u}..HEAD')
+
+		if [ "$behind_count" -eq 0 ] && [ "$ahead_count" -eq 0 ]; then
+			yadm_msg="Up to date"
+		elif [ "$behind_count" -eq 0 ] && [ "$ahead_count" -gt 0 ]; then
+			yadm_msg="Ahead $ahead_count commit"
+			[ "$ahead_count" -gt 1 ] && yadm_msg="${yadm_msg}s"
+		elif [ "$behind_count" -gt 0 ] && [ "$ahead_count" -eq 0 ]; then
+			yadm_msg="Behind $behind_count commit"
+			[ "$behind_count" -gt 1 ] && yadm_msg="${yadm_msg}s"
+		else
+			yadm_msg="Diverged"
+		fi
+
+        log yadm "$yadm_msg" >&6
+    fi
+}
+
 get_memory() {
     case $os in
         # Used memory is calculated using the following "formula":
