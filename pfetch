@@ -688,6 +688,27 @@ get_pkgs() {
     esac
 }
 
+get_yadm() {
+	if has yadm; then
+		UPSTREAM=$(yadm rev-parse --abbrev-ref --symbolic-full-name @{u})
+		LOCAL=$(yadm rev-parse @)
+		REMOTE=$(yadm rev-parse "$UPSTREAM")
+		BASE=$(yadm merge-base @ "$UPSTREAM")
+
+		if [ $LOCAL = $REMOTE ]; then
+			yadm_msg="Up-to-date"
+		elif [ $LOCAL = $BASE ]; then
+			yadm_msg="Need to pull"
+		elif [ $REMOTE = $BASE ]; then
+			yadm_msg="Need to push"
+		else
+			yadm_msg="Diverged"
+		fi
+
+		log yadm "$yadm_msg" >&6
+	fi
+}
+
 get_memory() {
     case $os in
         # Used memory is calculated using the following "formula":
