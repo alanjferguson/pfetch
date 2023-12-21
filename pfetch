@@ -709,6 +709,25 @@ get_yadm() {
 	fi
 }
 
+get_tmux() {
+    if has tmux; then
+        num_sessions=$(tmux list-sessions | wc -l)
+        case $num_sessions in
+            0)
+                msg="No sessions"
+                ;;
+            1)
+                msg="1 session"
+                ;;
+            *)
+                msg="$num_sessions sessions"
+                ;;
+        esac
+
+        log tmux "$msg" >&6
+    fi
+}
+
 get_memory() {
     case $os in
         # Used memory is calculated using the following "formula":
