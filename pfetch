@@ -689,9 +689,21 @@ get_pkgs() {
 }
 
 get_yadm() {
+	# yadm (which is a wrapper around git) is quite slow, so we call the
+	# yadm commands asynchronously and wait for these to complete. To get
+	# the output from these, we append it to files in a temporary
+	# directory.
+
     if has yadm; then
-		behind_count=$(yadm rev-list --count 'HEAD..@{u}')
-		ahead_count=$(yadm rev-list --count '@{u}..HEAD')
+		tmp_dir=$(mktemp -d) || return
+		trap 'rm -rf $tmp_dir' EXIT
+
+		yadm rev-list --count "HEAD..@{{u}" > "$tmp_dir/behind_count" &
+		yadm rev-list --count "@{{u}..HEAD" > "$tmp_dir/ahead_count" &
+		wait
+
+		behind_count=$(cat "$tmp_dir/behind_count")
+		ahead_count=$(cat "$tmp_dir/ahead_count")
 
 		if [ "$behind_count" -eq 0 ] && [ "$ahead_count" -eq 0 ]; then
 			yadm_msg="Up to date"
@@ -705,7 +717,30 @@ get_yadm() {
 			yadm_msg="Diverged"
 		fi
 
-        log yadm "$yadm_msg" >&6
+		log yadm "$yadm_msg" >&6
+	fi
+}
+
+get_tmux() {
+    if has tmux; then
+        num_sessions=$(tmux list-sessions | wc -l)
+        case $num_sessions in
+            0)
+                msg="No sessions"
+                ;;
+            1)
+                msg="1 session"
+                ;;
+            *)
+                msg="$num_sessions sessions"
+                ;;
+        esac
+
+		if [ -n "$TMUX" ]; then
+			msg="$msg (attached to ${TMUX##*,})"
+		fi
+
+        log tmux "$msg" >&6
     fi
 }
 
@@ -1935,7 +1970,7 @@ EOF
         # Disable globbing and set the positional parameters to the
         # contents of 'PF_INFO'.
         set -f
-        set +f -- ${PF_INFO-ascii title os host kernel uptime pkgs memory}
+        set +f -- ${PF_INFO-ascii title os host kernel uptime pkgs memory yadm tmux}
 
         # Iterate over the info functions to determine the lengths of the
         # "info names" for output alignment. The option names and subtitles
