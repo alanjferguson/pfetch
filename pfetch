@@ -690,16 +690,28 @@ get_pkgs() {
 
 get_yadm() {
 	if has yadm; then
-		UPSTREAM=$(yadm rev-parse --abbrev-ref --symbolic-full-name @{u})
-		LOCAL=$(yadm rev-parse @)
-		REMOTE=$(yadm rev-parse "$UPSTREAM")
-		BASE=$(yadm merge-base @ "$UPSTREAM")
+		# yadm (which is a wrapper around git) is quite slow, so we call the
+		# yadm commands asynchronously and wait for these to complete. To get
+		# the output from these, we append it to files in a temporary
+		# directory.
+	
+		tmp_dir=$(mktemp -d) || return
+		trap "rm -rf $tmp_dir" EXIT
 
-		if [ $LOCAL = $REMOTE ]; then
-			yadm_msg="Up-to-date"
-		elif [ $LOCAL = $BASE ]; then
+		yadm rev-parse @ > "$tmp_dir/local" &
+		yadm rev-parse "@{u}" > "$tmp_dir/remote" &
+		yadm merge-base @ "@{u}" > "$tmp_dir/base" &
+		wait
+
+		local=$(cat "$tmp_dir/local")
+		remote=$(cat "$tmp_dir/remote")
+		base=$(cat "$tmp_dir/base")
+
+		if [ "$local" = "$remote" ]; then
+			yadm_msg="Up to date"
+		elif [ "$local" = "$base" ]; then
 			yadm_msg="Need to pull"
-		elif [ $REMOTE = $BASE ]; then
+		elif [ "$remote" = "$base" ]; then
 			yadm_msg="Need to push"
 		else
 			yadm_msg="Diverged"
@@ -723,6 +735,10 @@ get_tmux() {
                 msg="$num_sessions sessions"
                 ;;
         esac
+
+		if [ -n "$TMUX" ]; then
+			msg="$msg (attached to ${TMUX##*,})"
+		fi
 
         log tmux "$msg" >&6
     fi
@@ -1954,7 +1970,7 @@ EOF
         # Disable globbing and set the positional parameters to the
         # contents of 'PF_INFO'.
         set -f
-        set +f -- ${PF_INFO-ascii title os host kernel uptime pkgs memory}
+        set +f -- ${PF_INFO-ascii title os host kernel uptime pkgs memory yadm tmux}
 
         # Iterate over the info functions to determine the lengths of the
         # "info names" for output alignment. The option names and subtitles
