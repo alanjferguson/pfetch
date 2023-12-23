@@ -698,8 +698,8 @@ get_yadm() {
 		tmp_dir=$(mktemp -d) || return
 		trap 'rm -rf $tmp_dir' EXIT
 
-		yadm rev-list --count "HEAD..@{{u}" > "$tmp_dir/behind_count" &
-		yadm rev-list --count "@{{u}..HEAD" > "$tmp_dir/ahead_count" &
+		yadm rev-list --count "HEAD..@{u}" > "$tmp_dir/behind_count" &
+		yadm rev-list --count "@{u}..HEAD" > "$tmp_dir/ahead_count" &
 		wait
 
 		behind_count=$(cat "$tmp_dir/behind_count")
